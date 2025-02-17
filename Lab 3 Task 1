@@ -1,3 +1,5 @@
+//Please note - The gas/temp sensors will only show as activated whilst their respective buttons are being held down when the '2' or '3' key is pressed.
+
 //=====[Libraries]=============================================================
 
 #include "mbed.h"
