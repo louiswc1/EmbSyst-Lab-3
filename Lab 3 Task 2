@@ -37,7 +37,7 @@ void alarmDeactivationUpdate();
 void uartTask();
 void availableCommands();
 
-//=====[Main function, the program entry point after power on or reset]========
+// Main function starts here
 
 int main()
 {
@@ -48,7 +48,7 @@ int main()
         alarmActivationUpdate();
         alarmDeactivationUpdate();
         uartTask();
-        ThisThread::sleep_for(100ms);  // Prevent CPU overuse
+        ThisThread::sleep_for(100ms); 
     }
 }
 
@@ -121,7 +121,7 @@ void uartTask()
         lastTime = currentTime;
     }
 
-    // Check for user input
+    // Check for keyboard input
     if (receivedChar == '2') {  // Report Gas Detector state
         if (gasDetector) {
             uartUsb.write("The Gas Detector is activated\r\n", 32);
