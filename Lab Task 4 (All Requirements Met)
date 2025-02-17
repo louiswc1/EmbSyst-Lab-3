@@ -1,0 +1,200 @@
+//Please note- gas and temp detectors will only show activated if buttons are held down.
+
+#include "mbed.h"
+#include "arm_book_lib.h"
+
+//=====[Declaration and initialization of public global objects]===============
+
+DigitalIn enterButton(BUTTON1);
+DigitalIn gasDetector(D2);
+DigitalIn overTempDetector(D3);
+DigitalIn aButton(D4);
+DigitalIn bButton(D5);
+DigitalIn cButton(D6);
+DigitalIn dButton(D7);
+
+DigitalOut alarmLed(LED1);
+DigitalOut incorrectCodeLed(LED3);
+DigitalOut systemBlockedLed(LED2);
+
+UnbufferedSerial uartUsb(USBTX, USBRX, 115200);
+
+//=====[Declaration and initialization of public global variables]=============
+
+bool alarmState = OFF;
+int numberOfIncorrectCodes = 0;
+
+//=====[Declarations (prototypes) of public functions]=========================
+
+void inputsInit();
+void outputsInit();
+
+void alarmActivationUpdate();
+void alarmDeactivationUpdate();
+
+void uartTask();
+void availableCommands();
+void reportSystemStatus();
+void reportAlarmState();
+void reportGasDetectorState();
+void reportTemperatureSensorState();
+void reportGasWarning();
+void reportTemperatureWarning();
+
+// Main function starts here
+
+int main()
+{
+    inputsInit();
+    outputsInit();
+
+    while (true) {
+        alarmActivationUpdate();
+        alarmDeactivationUpdate();
+        uartTask();
+        ThisThread::sleep_for(100ms);
+    }
+}
+
+//=====[Implementations of public functions]===================================
+
+void inputsInit()
+{
+    gasDetector.mode(PullDown);
+    overTempDetector.mode(PullDown);
+    aButton.mode(PullDown);
+    bButton.mode(PullDown);
+    cButton.mode(PullDown);
+    dButton.mode(PullDown);
+}
+
+void outputsInit()
+{
+    alarmLed = OFF;
+    incorrectCodeLed = OFF;
+    systemBlockedLed = OFF;
+}
+
+void alarmActivationUpdate()
+{
+    if (gasDetector || overTempDetector) {
+        alarmState = ON;
+    }
+    alarmLed = alarmState;
+}
+
+void alarmDeactivationUpdate()
+{
+    if (numberOfIncorrectCodes < 5) {
+        if (aButton && bButton && cButton && dButton && !enterButton) {
+            incorrectCodeLed = OFF;
+        }
+        if (enterButton && !incorrectCodeLed && alarmState) {
+            if (aButton && bButton && !cButton && !dButton) {
+                alarmState = OFF;
+                numberOfIncorrectCodes = 0;
+            } else {
+                incorrectCodeLed = ON;
+                numberOfIncorrectCodes++;
+            }
+        }
+    } else {
+        systemBlockedLed = ON;
+    }
+}
+
+void uartTask()
+{
+    static auto lastTime = Kernel::Clock::now();
+    char receivedChar = '\0';
+
+    if (uartUsb.readable()) {
+        uartUsb.read(&receivedChar, 1);
+    }
+
+    auto currentTime = Kernel::Clock::now();
+
+    // Set up 10 second rolling timer
+    if (chrono::duration_cast<chrono::seconds>(currentTime - lastTime).count() >= 10) {
+        reportSystemStatus();
+        lastTime = currentTime;
+    }
+
+    // Set up manual key presses 1-3
+    if (receivedChar == '1') {
+        reportAlarmState();
+    } else if (receivedChar == '2') {
+        reportGasDetectorState();
+    } else if (receivedChar == '3') {
+        reportTemperatureSensorState();
+    } else if (receivedChar != '\0') {  // If anything other than keys 1-3 are pressed
+        availableCommands();
+    }
+
+    // Continuous warning if gas or temperature levels exceed safe limits
+    if (gasDetector) {
+        reportGasWarning();
+    }
+
+    if (overTempDetector) {
+        reportTemperatureWarning();
+    }
+}
+
+void reportSystemStatus()
+{
+    reportAlarmState();
+    reportGasDetectorState();
+    reportTemperatureSensorState();
+}
+
+// Report alarm state
+void reportAlarmState()
+{
+    if (alarmState) {
+        uartUsb.write("The alarm is activated\r\n", 24);
+    } else {
+        uartUsb.write("The alarm is not activated\r\n", 28);
+    }
+}
+
+// Report gas state
+void reportGasDetectorState()
+{
+    if (gasDetector) {
+        uartUsb.write("The Gas Detector is activated\r\n", 32);
+    } else {
+        uartUsb.write("The Gas Detector is not activated\r\n", 36);
+    }
+}
+
+// Report temp state
+void reportTemperatureSensorState()
+{
+    if (overTempDetector) {
+        uartUsb.write("The Temperature Sensor is activated\r\n", 38);
+    } else {
+        uartUsb.write("The Temperature Sensor is not activated\r\n", 42);
+    }
+}
+
+// Warning message for gas detector
+void reportGasWarning()
+{
+    uartUsb.write("WARNING! Gas levels have exceeded the safe limit\r\n", 50);
+}
+
+// Warning message for temperature sensor
+void reportTemperatureWarning()
+{
+    uartUsb.write("WARNING! Temperature levels have exceeded the safe limit\r\n", 58);
+}
+
+// List of all commands
+void availableCommands()
+{
+    uartUsb.write("Available commands:\r\n", 21);
+    uartUsb.write("Press '1' to get the alarm state\r\n", 34);
+    uartUsb.write("Press '2' to get the Gas Detector state\r\n", 41);
+    uartUsb.write("Press '3' to get the Temperature Sensor state\r\n", 47);
+}
