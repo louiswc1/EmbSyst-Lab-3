@@ -37,7 +37,7 @@ void alarmDeactivationUpdate();
 void uartTask();
 void availableCommands();
 
-//=====[Main function, the program entry point after power on or reset]========
+// Main function starts here
 
 int main()
 {
@@ -110,7 +110,7 @@ void uartTask()
             }
         } 
 
-        //Addition of pressing '2' for report on Gas detector state
+        // Report on gas state
         else if(receivedChar =='2') {
             if(gasDetector == true){
             uartUsb.write("The Gas Detector is activated\r\n", 32);
@@ -118,7 +118,7 @@ void uartTask()
                 uartUsb.write("The Gas Detector is not activated\r\n", 36);
             }
         }
-        //Addition of pressing '3' for report on temperature sensor state
+        // Report on temp state
         else if(receivedChar =='3') {
             if(overTempDetector == true){
             uartUsb.write("The Temperature Sensor is activated\r\n", 38);
